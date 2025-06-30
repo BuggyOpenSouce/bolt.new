@@ -2,6 +2,7 @@ import { type ActionFunctionArgs } from '@remix-run/cloudflare';
 import { StreamingTextResponse, parseStreamPart } from 'ai';
 import { streamText } from '~/lib/.server/llm/stream-text';
 import { stripIndents } from '~/utils/stripIndent';
+import type { AIProvider } from '~/lib/.server/llm/model';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -10,12 +11,19 @@ export async function action(args: ActionFunctionArgs) {
   return enhancerAction(args);
 }
 
+interface EnhancerRequest {
+  message: string;
+  apiKeys?: Record<AIProvider, string>;
+  provider?: AIProvider;
+  model?: string;
+}
+
 async function enhancerAction({ context, request }: ActionFunctionArgs) {
-  const { message } = await request.json<{ message: string }>();
+  const { message, apiKeys, provider = 'anthropic', model } = await request.json<EnhancerRequest>();
 
   try {
-    const result = await streamText(
-      [
+    const result = await streamText({
+      messages: [
         {
           role: 'user',
           content: stripIndents`
@@ -29,8 +37,11 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
         `,
         },
       ],
-      context.cloudflare.env,
-    );
+      env: context.cloudflare.env,
+      apiKeys,
+      provider,
+      model,
+    });
 
     const transformStream = new TransformStream({
       transform(chunk, controller) {

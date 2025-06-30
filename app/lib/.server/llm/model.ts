@@ -1,9 +1,26 @@
-import { createAnthropic } from '@ai-sdk/anthropic';
+import { getAnthropicModel, getGeminiModel, getOpenRouterModel, getGroqModel } from './providers';
 
-export function getAnthropicModel(apiKey: string) {
-  const anthropic = createAnthropic({
-    apiKey,
-  });
+export type AIProvider = 'anthropic' | 'gemini' | 'openrouter' | 'groq';
 
-  return anthropic('claude-3-5-sonnet-20240620');
+export interface ModelConfig {
+  provider: AIProvider;
+  model?: string;
+  apiKey: string;
+}
+
+export function getModel(config: ModelConfig) {
+  const { provider, apiKey, model } = config;
+
+  switch (provider) {
+    case 'anthropic':
+      return getAnthropicModel(apiKey);
+    case 'gemini':
+      return getGeminiModel(apiKey);
+    case 'openrouter':
+      return getOpenRouterModel(apiKey, model);
+    case 'groq':
+      return getGroqModel(apiKey, model);
+    default:
+      throw new Error(`Unsupported AI provider: ${provider}`);
+  }
 }

@@ -8,6 +8,7 @@ import { useMessageParser, usePromptEnhancer, useShortcuts, useSnapScroll } from
 import { useChatHistory } from '~/lib/persistence';
 import { chatStore } from '~/lib/stores/chat';
 import { workbenchStore } from '~/lib/stores/workbench';
+import { aiSettingsStore } from '~/lib/stores/settings';
 import { fileModificationsToHTML } from '~/utils/diff';
 import { cubicEasingFn } from '~/utils/easings';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
@@ -72,14 +73,26 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
   const [chatStarted, setChatStarted] = useState(initialMessages.length > 0);
 
   const { showChat } = useStore(chatStore);
+  const aiSettings = useStore(aiSettingsStore);
 
   const [animationScope, animate] = useAnimate();
 
   const { messages, isLoading, input, handleInputChange, setInput, stop, append } = useChat({
     api: '/api/chat',
+    body: {
+      apiKeys: aiSettings.apiKeys,
+      provider: aiSettings.provider,
+      model: aiSettings.model,
+    },
     onError: (error) => {
       logger.error('Request failed\n\n', error);
-      toast.error('There was an error processing your request');
+      
+      // Check if it's an API key error
+      if (error.message?.includes('API key') || error.message?.includes('401')) {
+        toast.error('Invalid or missing API key. Please check your settings.');
+      } else {
+        toast.error('There was an error processing your request');
+      }
     },
     onFinish: () => {
       logger.debug('Finished streaming');
@@ -150,6 +163,13 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     const _input = messageInput || input;
 
     if (_input.length === 0 || isLoading) {
+      return;
+    }
+
+    // Check if API key is available for the selected provider
+    const currentApiKey = aiSettings.apiKeys[aiSettings.provider];
+    if (!currentApiKey) {
+      toast.error(`Please set your ${aiSettings.provider} API key in settings before sending messages.`);
       return;
     }
 

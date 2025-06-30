@@ -3,13 +3,21 @@ import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/.server/llm/prompts';
 import { streamText, type Messages, type StreamingOptions } from '~/lib/.server/llm/stream-text';
 import SwitchableStream from '~/lib/.server/llm/switchable-stream';
+import type { AIProvider } from '~/lib/.server/llm/model';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
 }
 
+interface ChatRequest {
+  messages: Messages;
+  apiKeys?: Record<AIProvider, string>;
+  provider?: AIProvider;
+  model?: string;
+}
+
 async function chatAction({ context, request }: ActionFunctionArgs) {
-  const { messages } = await request.json<{ messages: Messages }>();
+  const { messages, apiKeys, provider = 'anthropic', model } = await request.json<ChatRequest>();
 
   const stream = new SwitchableStream();
 
@@ -32,13 +40,27 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         messages.push({ role: 'assistant', content });
         messages.push({ role: 'user', content: CONTINUE_PROMPT });
 
-        const result = await streamText(messages, context.cloudflare.env, options);
+        const result = await streamText({
+          messages,
+          env: context.cloudflare.env,
+          options,
+          apiKeys,
+          provider,
+          model,
+        });
 
         return stream.switchSource(result.toAIStream());
       },
     };
 
-    const result = await streamText(messages, context.cloudflare.env, options);
+    const result = await streamText({
+      messages,
+      env: context.cloudflare.env,
+      options,
+      apiKeys,
+      provider,
+      model,
+    });
 
     stream.switchSource(result.toAIStream());
 
@@ -50,6 +72,15 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     });
   } catch (error) {
     console.log(error);
+
+    if (error instanceof Error && error.message.includes('API key')) {
+      throw new Response(JSON.stringify({ error: error.message }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    }
 
     throw new Response(null, {
       status: 500,

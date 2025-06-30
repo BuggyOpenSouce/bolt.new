@@ -1,4 +1,6 @@
+import { useStore } from '@nanostores/react';
 import { useState } from 'react';
+import { aiSettingsStore } from '~/lib/stores/settings';
 import { createScopedLogger } from '~/utils/logger';
 
 const logger = createScopedLogger('usePromptEnhancement');
@@ -6,6 +8,7 @@ const logger = createScopedLogger('usePromptEnhancement');
 export function usePromptEnhancer() {
   const [enhancingPrompt, setEnhancingPrompt] = useState(false);
   const [promptEnhanced, setPromptEnhanced] = useState(false);
+  const aiSettings = useStore(aiSettingsStore);
 
   const resetEnhancer = () => {
     setEnhancingPrompt(false);
@@ -18,8 +21,14 @@ export function usePromptEnhancer() {
 
     const response = await fetch('/api/enhancer', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         message: input,
+        apiKeys: aiSettings.apiKeys,
+        provider: aiSettings.provider,
+        model: aiSettings.model,
       }),
     });
 

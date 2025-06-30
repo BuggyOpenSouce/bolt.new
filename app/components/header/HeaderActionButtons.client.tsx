@@ -1,45 +1,60 @@
 import { useStore } from '@nanostores/react';
+import { useState } from 'react';
 import { chatStore } from '~/lib/stores/chat';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { classNames } from '~/utils/classNames';
+import { Settings } from '~/components/ui/Settings';
+import { IconButton } from '~/components/ui/IconButton';
 
 interface HeaderActionButtonsProps {}
 
 export function HeaderActionButtons({}: HeaderActionButtonsProps) {
   const showWorkbench = useStore(workbenchStore.showWorkbench);
   const { showChat } = useStore(chatStore);
+  const [showSettings, setShowSettings] = useState(false);
 
   const canHideChat = showWorkbench || !showChat;
 
   return (
-    <div className="flex">
-      <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden">
-        <Button
-          active={showChat}
-          disabled={!canHideChat}
-          onClick={() => {
-            if (canHideChat) {
-              chatStore.setKey('showChat', !showChat);
-            }
-          }}
-        >
-          <div className="i-bolt:chat text-sm" />
-        </Button>
-        <div className="w-[1px] bg-bolt-elements-borderColor" />
-        <Button
-          active={showWorkbench}
-          onClick={() => {
-            if (showWorkbench && !showChat) {
-              chatStore.setKey('showChat', true);
-            }
+    <>
+      <div className="flex items-center gap-2">
+        <IconButton
+          icon="i-ph:gear"
+          title="Settings"
+          onClick={() => setShowSettings(true)}
+          className="text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary"
+        />
+        
+        <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden">
+          <Button
+            active={showChat}
+            disabled={!canHideChat}
+            onClick={() => {
+              if (canHideChat) {
+                chatStore.setKey('showChat', !showChat);
+              }
+            }}
+          >
+            <div className="i-bolt:chat text-sm" />
+          </Button>
+          <div className="w-[1px] bg-bolt-elements-borderColor" />
+          <Button
+            active={showWorkbench}
+            onClick={() => {
+              if (showWorkbench && !showChat) {
+                chatStore.setKey('showChat', true);
+              }
 
-            workbenchStore.showWorkbench.set(!showWorkbench);
-          }}
-        >
-          <div className="i-ph:code-bold" />
-        </Button>
+              workbenchStore.showWorkbench.set(!showWorkbench);
+            }}
+          >
+            <div className="i-ph:code-bold" />
+          </Button>
+        </div>
       </div>
-    </div>
+
+      <Settings isOpen={showSettings} onClose={() => setShowSettings(false)} />
+    </>
   );
 }
 
